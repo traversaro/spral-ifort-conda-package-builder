@@ -1,0 +1,72 @@
+name: Conda
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+  release:
+    types: [published]
+
+# Subset of https://github.com/oneapi-src/oneapi-ci/blob/48181a0cc898e99aaf5744975ceb632238050356/.github/workflows/build_all.yml
+# I remove all Linux/macOS stuff
+env:
+  WINDOWS_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/62641e01-1e8d-4ace-91d6-ae03f7f8a71f/w_BaseKit_p_2024.0.0.49563_offline.exe
+  WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/5b36181e-4974-4733-91c7-0c10c54900a5/w_HPCKit_p_2024.0.0.49588_offline.exe
+  WINDOWS_CPP_COMPONENTS: intel.oneapi.win.cpp-dpcpp-common
+  WINDOWS_FORTRAN_COMPONENTS: intel.oneapi.win.ifort-compiler
+  WINDOWS_DPCPP_COMPONENTS: intel.oneapi.win.cpp-dpcpp-common
+  CACHE_NUMBER: 6
+  SAMPLES_TAG: 2024.0.0
+  COMPILER_VERSION: 2024.0.0
+  TBB_VERSION: 2021.11.0
+  VS_VER: vs2019
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-2019]
+
+
+    steps:
+        - uses: actions/checkout@v3
+
+        - name: cache intel fortran install
+          id: cache-intel-fortran-install
+          uses: actions/cache@v2
+          with:
+            path: |
+              C:\Program Files (x86)\Intel\oneAPI\setvars-vcvarsall.bat
+              C:\Program Files (x86)\Intel\oneAPI\compiler
+            key: install-${{ env.CACHE_NUMBER }}-${{ env.WINDOWS_HPCKIT_URL }}-${{ env.WINDOWS_FORTRAN_COMPONENTS }}-compiler
+        
+        - name: install intel fortran compiler
+          if: steps.cache-intel-fortran-install.outputs.cache-hit != 'true'
+          run: install_windows_intel_fortran.bat $WINDOWS_HPCKIT_URL $WINDOWS_FORTRAN_COMPONENTS
+
+        - uses: conda-incubator/setup-miniconda@v2
+          with:
+            miniforge-variant: Mambaforge
+            miniforge-version: latest
+
+        - name: Dependencies for conda recipes generation and upload
+          shell: bash -l {0}
+          run: |
+            # Workaround for https://github.com/conda-incubator/setup-miniconda/issues/186
+            conda config --remove channels defaults
+            mamba install pyyaml jinja2 conda-build ninja conda-forge-pinning mamba boa multisheller
+            
+        - name: Print used environment
+          shell: bash -l {0}
+          run: |
+            mamba list
+            env
+        
+        - name: Build conda packages
+          shell: bash -l {0}
+          run: |
+            export GITHUB_ACTION_WD=`pwd`
+            cd conda/spral
+            conda mambabuild -m ${CONDA_PREFIX}/conda_build_config.yaml .
+

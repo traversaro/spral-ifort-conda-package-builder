@@ -32,18 +32,11 @@ jobs:
     steps:
         - uses: actions/checkout@v3
 
-        - name: cache intel fortran install
-          id: cache-intel-fortran-install
-          uses: actions/cache@v2
+        - uses: fortran-lang/setup-fortran@v1
+          id: setup-fortran
           with:
-            path: |
-              C:\Program Files (x86)\Intel\oneAPI\setvars-vcvarsall.bat
-              C:\Program Files (x86)\Intel\oneAPI\compiler
-            key: install-${{ env.CACHE_NUMBER }}-${{ env.WINDOWS_HPCKIT_URL }}-${{ env.WINDOWS_FORTRAN_COMPONENTS }}-compiler
-        
-        - name: install intel fortran compiler
-          if: steps.cache-intel-fortran-install.outputs.cache-hit != 'true'
-          run: install_windows_intel_fortran.bat $WINDOWS_HPCKIT_URL $WINDOWS_FORTRAN_COMPONENTS
+            compiler: 'intel'
+            version: '2023.2'
 
         - uses: conda-incubator/setup-miniconda@v2
           with:
@@ -53,6 +46,7 @@ jobs:
         - name: Dependencies for conda recipes generation and upload
           shell: bash -l {0}
           run: |
+            echo "The fortran compiler configured is $FC"
             # Workaround for https://github.com/conda-incubator/setup-miniconda/issues/186
             conda config --remove channels defaults
             mamba install pyyaml jinja2 conda-build ninja conda-forge-pinning mamba boa multisheller

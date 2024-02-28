@@ -22,7 +22,7 @@ jobs:
           id: setup-fortran
           with:
             compiler: 'intel-classic'
-            version: '2023.2'
+            version: '2021.10'
 
         - uses: conda-incubator/setup-miniconda@v2
           with:
